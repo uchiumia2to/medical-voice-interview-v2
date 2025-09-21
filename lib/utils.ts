@@ -187,10 +187,13 @@ export const isEmptyOrWhitespace = (text: string): boolean => {
 };
 
 /**
- * クラス名を結合するユーティリティ
+ * クラス名を結合するユーティリティ（修正版）
  */
-export const cn = (...classes: (string | undefined | null | false)[]): string => {
-  return classes.filter(Boolean).join(' ');
+export const cn = (...classes: (string | string[] | undefined | null | false)[]): string => {
+  return classes
+    .flat() // 配列をフラット化
+    .filter(Boolean) // falsy値を除外
+    .join(' '); // スペースで結合
 };
 
 /**
