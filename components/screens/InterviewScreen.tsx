@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PatientInfo, InterviewAnswer } from '@/lib/types';
 import { questions } from '@/lib/constants';
 import { generateTimestamp } from '@/lib/utils';
@@ -16,7 +16,7 @@ interface InterviewScreenProps {
   setIsProcessing: (processing: boolean) => void;
 }
 
-const InterviewScreen: React.FC<InterviewScreenProps> = ({
+const InterviewScreen: React.FC<InterviewScreenProps> = React.memo(({
   patientInfo,
   initialAnswers,
   onComplete,
@@ -30,6 +30,20 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
   const [interimTranscript, setInterimTranscript] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 音声認識のコールバックをメモ化
+  const handleTranscript = useCallback((text: string, isFinal: boolean) => {
+    if (isFinal) {
+      setCurrentAnswer(prev => prev + text + ' ');
+      setInterimTranscript('');
+    } else {
+      setInterimTranscript(text);
+    }
+  }, []);
+
+  const handleVoiceError = useCallback((error: string) => {
+    console.error('音声認識エラー:', error);
+  }, []);
+
   const {
     voiceState,
     transcript,
@@ -39,20 +53,11 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
     resetTranscript,
     isSupported: isVoiceSupported
   } = useVoiceRecognition({
-    onTranscript: (text, isFinal) => {
-      if (isFinal) {
-        setCurrentAnswer(prev => prev + text + ' ');
-        setInterimTranscript('');
-      } else {
-        setInterimTranscript(text);
-      }
-    },
-    onError: (error) => {
-      console.error('音声認識エラー:', error);
-    }
+    onTranscript: handleTranscript,
+    onError: handleVoiceError
   });
 
-  // 質問変更時の初期化
+  // 質問変更時の初期化（最適化版）
   useEffect(() => {
     const existingAnswer = answers.find((_, index) => index === currentQuestionIndex);
     if (existingAnswer) {
@@ -69,8 +74,8 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
   const canGoNext = currentAnswer.trim().length > 0;
   const canGoPrev = currentQuestionIndex > 0;
 
-  // 音声認識開始/停止
-  const handleVoiceToggle = async () => {
+  // 音声認識開始/停止（メモ化）
+  const handleVoiceToggle = useCallback(async () => {
     try {
       if (voiceState.isListening) {
         stopListening();
@@ -80,10 +85,10 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
     } catch (error) {
       console.error('音声認識の開始に失敗:', error);
     }
-  };
+  }, [voiceState.isListening, startListening, stopListening]);
 
-  // 音声ファイルアップロード
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // 音声ファイルアップロード（メモ化）
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -100,10 +105,10 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
         fileInputRef.current.value = '';
       }
     }
-  };
+  }, [uploadAudioFile, setIsProcessing]);
 
-  // 回答保存
-  const saveCurrentAnswer = () => {
+  // 回答保存（メモ化）
+  const saveCurrentAnswer = useCallback(() => {
     if (!currentAnswer.trim()) return;
 
     const answerData: InterviewAnswer = {
@@ -117,10 +122,10 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
       newAnswers[currentQuestionIndex] = answerData;
       return newAnswers;
     });
-  };
+  }, [currentAnswer, currentQuestion, currentQuestionIndex]);
 
-  // 次の質問へ
-  const handleNext = () => {
+  // 次の質問へ（メモ化）
+  const handleNext = useCallback(() => {
     saveCurrentAnswer();
     
     if (isLastQuestion) {
@@ -135,16 +140,16 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
     } else {
       setCurrentQuestionIndex(prev => prev + 1);
     }
-  };
+  }, [saveCurrentAnswer, isLastQuestion, answers, currentQuestionIndex, currentQuestion, currentAnswer, onComplete]);
 
-  // 前の質問へ
-  const handlePrevious = () => {
+  // 前の質問へ（メモ化）
+  const handlePrevious = useCallback(() => {
     saveCurrentAnswer();
     setCurrentQuestionIndex(prev => prev - 1);
-  };
+  }, [saveCurrentAnswer]);
 
-  // 回答履歴の表示
-  const getAnswerHistory = () => {
+  // 回答履歴の表示（メモ化）
+  const getAnswerHistory = useCallback(() => {
     return answers
       .filter((_, index) => index < currentQuestionIndex)
       .map((answer, index) => (
@@ -160,7 +165,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
           </div>
         </div>
       ));
-  };
+  }, [answers, currentQuestionIndex]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -201,16 +206,20 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
               🗣️ あなたの回答
             </label>
             <textarea
-              value={currentAnswer + (interimTranscript ? ` ${interimTranscript}` : '')}
+              value={currentAnswer}
               onChange={(e) => setCurrentAnswer(e.target.value)}
               placeholder="こちらに症状や気になることを入力してください。音声入力も利用できます。"
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              autoComplete="off"
             />
+            
+            {/* 音声認識の中間結果表示（分離） */}
             {interimTranscript && (
-              <p className="text-xs text-gray-500 mt-1">
-                音声認識中: {interimTranscript}
-              </p>
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-xs text-blue-600 mb-1">音声認識中:</p>
+                <p className="text-sm text-blue-800">{interimTranscript}</p>
+              </div>
             )}
           </div>
 
@@ -357,6 +366,8 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({
       </Card>
     </div>
   );
-};
+});
+
+InterviewScreen.displayName = 'InterviewScreen';
 
 export default InterviewScreen;
