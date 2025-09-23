@@ -44,13 +44,13 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
     }
   });
 
-  // コンポーネント初期化時にAI分析を開始
+  // コンポーネント初期化時にAI分析を開始（修正版）
   useEffect(() => {
     if (!analysisGenerated && !isGenerating && interviewAnswers.length > 0) {
       setIsProcessing(true);
       generateSummary(patientInfo, interviewAnswers);
     }
-  }, [patientInfo, interviewAnswers, generateSummary, analysisGenerated, isGenerating, setIsProcessing]);
+  }, [patientInfo, interviewAnswers]); // generateSummaryを依存配列から削除
 
   // 緊急度表示の取得
   const getUrgencyDisplay = (level: 'emergency' | 'urgent' | 'normal') => {
