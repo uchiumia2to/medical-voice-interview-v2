@@ -5,8 +5,8 @@ import { PatientInfo, InterviewAnswer, AIAnalysisResult, ScreenType } from '@/li
 
 // 画面コンポーネントのインポート
 import PatientInfoScreen from '@/components/screens/PatientInfoScreen';
+import InterviewScreen from '@/components/screens/InterviewScreen';
 import CompletionScreen from '@/components/screens/CompletionScreen';
-// import InterviewScreen from '@/components/screens/InterviewScreen';
 // import ConfirmationScreen from '@/components/screens/ConfirmationScreen';
 // import DoctorScreen from '@/components/screens/DoctorScreen';
 
@@ -71,6 +71,18 @@ export default function Home() {
           />
         );
 
+      case 'interview':
+        return (
+          <InterviewScreen
+            patientInfo={patientInfo!}
+            initialAnswers={interviewAnswers}
+            onComplete={handleInterviewComplete}
+            onBack={() => setCurrentScreen('patientInfo')}
+            isProcessing={isProcessing}
+            setIsProcessing={setIsProcessing}
+          />
+        );
+
       case 'completion':
         return (
           <CompletionScreen
@@ -80,32 +92,6 @@ export default function Home() {
         );
 
       // 他の画面は後で追加
-      case 'interview':
-        return (
-          <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-lg shadow-lg p-6 text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                音声問診画面
-              </h1>
-              <p className="text-gray-600 mb-4">
-                準備中...
-              </p>
-              <button
-                onClick={() => setCurrentScreen('confirmation')}
-                className="bg-blue-600 text-white px-4 py-2 rounded mr-2"
-              >
-                確認画面へ（テスト）
-              </button>
-              <button
-                onClick={handleReset}
-                className="bg-gray-600 text-white px-4 py-2 rounded"
-              >
-                最初に戻る
-              </button>
-            </div>
-          </div>
-        );
-
       case 'confirmation':
         return (
           <div className="max-w-md mx-auto">
