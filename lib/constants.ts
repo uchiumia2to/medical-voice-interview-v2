@@ -82,7 +82,7 @@ export const colors = {
     text: 'text-gray-700',
     border: 'border-gray-300'
   }
-} as const;
+};
 
 // 緊急度レベル定義
 export const urgencyLevels = {
@@ -104,7 +104,7 @@ export const urgencyLevels = {
     icon: '✅',
     label: '通常'
   }
-} as const;
+};
 
 // 医療安全免責事項
 export const medicalDisclaimers = {
@@ -114,25 +114,25 @@ export const medicalDisclaimers = {
   emergencyAction: '症状が悪化した場合は速やかに医療機関を受診してください',
   emergencyCall: '緊急時は119番通報または救急外来を受診してください',
   aiLimitation: 'AI分析の精度には限界があり、医師の判断と異なる場合があります'
-} as const;
+};
 
 // API エンドポイント
 export const apiEndpoints = {
   summarize: '/api/summarize',
   diagnose: '/api/diagnose',
   transcribe: '/api/transcribe'
-} as const;
+};
 
-// 音声設定
+// 音声設定（型エラー修正版）
 export const voiceSettings = {
   maxFileSize: 25 * 1024 * 1024, // 25MB
-  supportedFormats: ['audio/wav', 'audio/mp3', 'audio/m4a', 'audio/webm'],
+  supportedFormats: ['audio/wav', 'audio/mp3', 'audio/m4a', 'audio/webm'] as string[], // 型修正
   speechRecognition: {
     language: 'ja-JP',
     continuous: true,
     interimResults: true
   }
-} as const;
+};
 
 // 画面別最大幅設定
 export const screenMaxWidths = {
@@ -141,4 +141,4 @@ export const screenMaxWidths = {
   confirmation: 'max-w-4xl',
   completion: 'max-w-md',
   doctor: 'max-w-6xl'
-} as const;
+};
