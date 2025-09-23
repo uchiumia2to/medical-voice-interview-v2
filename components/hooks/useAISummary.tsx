@@ -25,7 +25,37 @@ export const useAISummary = (
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // AI要約生成関数
+  // フォールバック要約生成（API失敗時）- メモ化
+  const generateFallbackSummary = useCallback((answers: InterviewAnswer[]): string => {
+    const mainSymptoms = answers[0]?.answer || '症状の詳細が不明';
+    const painLevel = answers[1]?.answer || '痛みの程度が不明';
+    const otherSymptoms = answers[2]?.answer || 'その他の症状なし';
+    const medications = answers[3]?.answer || '服用薬なし';
+    const allergies = answers[4]?.answer || 'アレルギーなし';
+
+    return `【${medicalDisclaimers.aiReference}】
+
+主な症状：
+${mainSymptoms}
+
+痛み・違和感の程度：
+${painLevel}
+
+その他の症状：
+${otherSymptoms}
+
+現在の服用薬：
+${medications}
+
+アレルギー情報：
+${allergies}
+
+※ この要約は患者様の回答内容をもとに自動生成されました。
+※ ${medicalDisclaimers.main}
+※ ${medicalDisclaimers.doctorDecision}`;
+  }, []);
+
+  // AI要約生成関数（メモ化で安定化）
   const generateSummary = useCallback(async (
     patientInfo: PatientInfo,
     answers: InterviewAnswer[]
@@ -118,37 +148,7 @@ export const useAISummary = (
     } finally {
       setIsGenerating(false);
     }
-  }, [onSuccess, onError]);
-
-  // フォールバック要約生成（API失敗時）
-  const generateFallbackSummary = (answers: InterviewAnswer[]): string => {
-    const mainSymptoms = answers[0]?.answer || '症状の詳細が不明';
-    const painLevel = answers[1]?.answer || '痛みの程度が不明';
-    const otherSymptoms = answers[2]?.answer || 'その他の症状なし';
-    const medications = answers[3]?.answer || '服用薬なし';
-    const allergies = answers[4]?.answer || 'アレルギーなし';
-
-    return `【${medicalDisclaimers.aiReference}】
-
-主な症状：
-${mainSymptoms}
-
-痛み・違和感の程度：
-${painLevel}
-
-その他の症状：
-${otherSymptoms}
-
-現在の服用薬：
-${medications}
-
-アレルギー情報：
-${allergies}
-
-※ この要約は患者様の回答内容をもとに自動生成されました。
-※ ${medicalDisclaimers.main}
-※ ${medicalDisclaimers.doctorDecision}`;
-  };
+  }, [onSuccess, onError, generateFallbackSummary]);
 
   // 分析結果リセット
   const resetAnalysis = useCallback(() => {
