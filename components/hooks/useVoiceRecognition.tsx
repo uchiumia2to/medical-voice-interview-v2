@@ -21,6 +21,68 @@ interface UseVoiceRecognitionReturn {
   isSupported: boolean;
 }
 
+// 型定義の修正
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognition;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  grammars: any;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  onaudioend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onaudiostart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
+  onnomatch: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  onsoundend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onsoundstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onspeechend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onspeechstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  abort(): void;
+  start(): void;
+  stop(): void;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error: string;
+  readonly message: string;
+}
+
+interface SpeechRecognitionResultList {
+  readonly length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  readonly isFinal: boolean;
+  readonly length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  readonly confidence: number;
+  readonly transcript: string;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
+}
+
 export const useVoiceRecognition = (
   options: UseVoiceRecognitionOptions = {}
 ): UseVoiceRecognitionReturn => {
@@ -41,16 +103,25 @@ export const useVoiceRecognition = (
   });
 
   const [transcript, setTranscript] = useState<string>('');
+  const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const isSupported = typeof window !== 'undefined' && 
-    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  // ブラウザサポート確認（クライアントサイドでのみ実行）
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const supported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+      setIsSupported(supported);
+    }
+  }, []);
 
   // 音声認識の初期化
   useEffect(() => {
-    if (!isSupported) return;
+    if (!isSupported || typeof window === 'undefined') return;
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) return;
+
+    const recognition = new SpeechRecognitionClass();
 
     recognition.lang = language;
     recognition.continuous = continuous;
@@ -180,7 +251,7 @@ export const useVoiceRecognition = (
     }
   }, [voiceState.isListening]);
 
-  // 音声ファイルアップロード
+  // 音声ファイルアップロード（簡易版 - APIキー設定後に有効化）
   const uploadAudioFile = useCallback(async (file: File): Promise<string> => {
     setVoiceState(prev => ({
       ...prev,
@@ -199,31 +270,15 @@ export const useVoiceRecognition = (
         throw new Error('サポートされていないファイル形式です。');
       }
 
-      // FormDataを作成
-      const formData = new FormData();
-      formData.append('audio', file);
-
-      // APIリクエスト
-      const response = await fetch(apiEndpoints.transcribe, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error(`音声転写に失敗しました: ${response.status}`);
-      }
-
-      const result = await response.json();
+      // 一時的なモック応答（APIキー設定後に実際のAPI呼び出しに変更）
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2秒待機でAPI呼び出しをシミュレート
       
-      if (!result.transcript) {
-        throw new Error('音声転写結果が取得できませんでした。');
-      }
+      const mockTranscript = `[音声ファイル: ${file.name}からの転写結果] テスト用の転写テキストです。実際のAPI連携後に正しい転写結果が表示されます。`;
+      
+      setTranscript(prev => prev + mockTranscript);
+      onTranscript?.(mockTranscript, true);
 
-      const transcriptText = result.transcript;
-      setTranscript(prev => prev + transcriptText);
-      onTranscript?.(transcriptText, true);
-
-      return transcriptText;
+      return mockTranscript;
     } catch (error) {
       const errorMessage = standardizeErrorMessage(error);
       setVoiceState(prev => ({
@@ -261,21 +316,3 @@ export const useVoiceRecognition = (
     isSupported
   };
 };
-
-// グローバル型定義の拡張
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-
-  interface SpeechRecognitionEvent extends Event {
-    readonly resultIndex: number;
-    readonly results: SpeechRecognitionResultList;
-  }
-
-  interface SpeechRecognitionErrorEvent extends Event {
-    readonly error: string;
-    readonly message: string;
-  }
-}
